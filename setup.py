@@ -1,10 +1,11 @@
 import os
 
 # Monkeypatch distutils.
-import setuptools
+# import setuptools
+from setuptools import setup
 
 import distutils.errors
-from distutils.core import setup
+# from distutils.core import setup
 from distutils.extension import Extension
 from distutils.log import warn
 
@@ -36,17 +37,26 @@ function-level profiling tools in the Python standard library.
 setup(
     name = 'line_profiler',
     version = '1.0',
+    ext_modules = [
+        Extension('line_profiler._line_profiler',
+                  sources=[line_profiler_source, 'timers.c', 'unset_trace.c'],
+                  depends=['python25.pxd'],
+        ),
+    ],
+    package_dir = {'line_profiler': ''},
+    packages = ['line_profiler'],
+    # py_modules = ['line_profiler', 'kernprof', 'getblock'],
+    entry_points = {
+        'console_scripts': [
+            'kernprof=kernprof:main',
+        ],
+    },
+    cmdclass = cmdclass,
     author = 'Robert Kern',
     author_email = 'robert.kern@enthought.com',
     description = 'Line-by-line profiler.',
     long_description = long_description,
     url = 'https://github.com/rkern/line_profiler',
-    ext_modules = [
-        Extension('_line_profiler',
-                  sources=[line_profiler_source, 'timers.c', 'unset_trace.c'],
-                  depends=['python25.pxd'],
-        ),
-    ],
     license = "BSD",
     classifiers = [
         "Development Status :: 5 - Production/Stable",
@@ -64,11 +74,4 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         "Topic :: Software Development",
     ],
-    py_modules = ['line_profiler', 'kernprof'],
-    entry_points = {
-        'console_scripts': [
-            'kernprof=kernprof:main',
-        ],
-    },
-    cmdclass = cmdclass,
 )

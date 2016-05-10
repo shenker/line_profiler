@@ -18,6 +18,7 @@ import os
 import sys
 
 from _line_profiler import LineProfiler as CLineProfiler
+from getblock import getblock
 
 # Python 2/3 compatibility utils
 # ===========================================================
@@ -186,7 +187,7 @@ def show_func(filename, start_lineno, func_name, timings, unit, stream=None, str
             # Clear the cache to ensure that we get up-to-date results.
             linecache.clearcache()
         all_lines = linecache.getlines(filename)
-        sublines = inspect.getblock(all_lines[start_lineno-1:])
+        sublines = getblock(all_lines[start_lineno-1:])
     else:
         stream.write("\n")
         stream.write("Could not find file %s\n" % filename)
