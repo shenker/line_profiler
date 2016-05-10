@@ -41,7 +41,7 @@ cdef extern from "unset_trace.h":
     void unset_trace()
 
 
-def label(code):
+def label(code, filename=None):
     """ Return a (filename, first_lineno, func_name) tuple for a given code
     object.
 
@@ -50,7 +50,9 @@ def label(code):
     if isinstance(code, str):
         return ('~', 0, code)    # built-in functions ('~' sorts at the end)
     else:
-        return (code.co_filename, code.co_firstlineno, code.co_name)
+        if filename is None:
+            filename = code.co_filename
+        return (filename, code.co_firstlineno, code.co_name)
 
 
 cdef class LineTiming:
@@ -106,20 +108,22 @@ cdef class LineProfiler:
     """
     cdef public list functions
     cdef public dict code_map
-    cdef public dict file_map
+    cdef public dict filename_map
     cdef public dict last_time
     cdef public double timer_unit
     cdef public long enable_count
 
-    def __init__(self, *functions):
+    def __init__(self, *functions, profile_all=False):
         self.functions = []
         self.code_map = {}
-        self.file_map = {}
+        self.filename_map = {}
         self.last_time = {}
         self.timer_unit = hpTimerUnit()
         self.enable_count = 0
         for func in functions:
             self.add_function(func)
+        self.filenames = set()
+        self.profile_all = profile_all
 
     def add_function(self, func):
         """ Record line profiling information for the given Python function.
@@ -133,6 +137,11 @@ cdef class LineProfiler:
         if code not in self.code_map:
             self.code_map[code] = {}
             self.functions.append(func)
+
+    def add_filename(self, filename):
+        """ Enable line profiling for all functions corresponding to a filename.
+        """
+        self.filenames.add(filename)
 
     def enable_by_count(self):
         """ Enable the profiler if it hasn't been enabled before.
@@ -168,12 +177,10 @@ cdef class LineProfiler:
         """
         stats = {}
         for code in self.code_map:
-            filename = self.file_map[code]
             entries = self.code_map[code].values()
-            key = self.label(code)
+            key = label(code, filename=self.filename_map.get(code))
             stats[key] = [e.astuple() for e in entries]
             stats[key].sort()
-            stats[key].append(filename)
         return LineStats(stats, self.timer_unit)
 
 
@@ -202,17 +209,24 @@ cdef int python_trace_callback(object self_, PyFrameObject *py_frame, int what,
     self = <LineProfiler>self_
     last_time = self.last_time
 
-    if what == PyTrace_CALL and <object>py_frame.f_code not in self.code_map:
-        # Set filename to more useful one
-        f_globals = <object>py_frame.f_globals
-        better_fname = <object>f_globals.get('__file__', None)
-        code = <object>py_frame.f_code
-
-        if better_fname is None:
-            better_fname = code.co_filename
-
-        self.code_map[code] = {}
-        self.file_map[code] = better_fname
+    if self.filenames or self.profile_all:
+        if what == PyTrace_CALL and <object>py_frame.f_code not in self.code_map:
+            # Set filename to more useful one
+            # TODO: this picks up .pyc's instead of .py's, which breaks print_stats
+            # f_globals = <object>py_frame.f_globals
+            # filename = <object>f_globals.get('__file__')
+            # if filename is None:
+            #     filename = code.co_filename
+            code = <object>py_frame.f_code
+            # TODO: this hack will ignore legitimate functions with wrong names/filenames
+            # genexpr: generator expressions
+            # stringsource: memoryview utility functions, etc.
+            if code.co_name == 'genexpr' or code.co_filename == 'stringsource':
+                return 0
+            filename = code.co_filename
+            if self.profile_all or filename in self.filenames:
+                self.code_map[code] = {}
+                self.filename_map[code] = filename
 
     if what == PyTrace_LINE or what == PyTrace_RETURN:
         code = <object>py_frame.f_code
