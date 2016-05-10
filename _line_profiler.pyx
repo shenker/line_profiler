@@ -106,6 +106,7 @@ cdef class LineProfiler:
     """
     cdef public list functions
     cdef public dict code_map
+    cdef public dict file_map
     cdef public dict last_time
     cdef public double timer_unit
     cdef public long enable_count
@@ -113,6 +114,7 @@ cdef class LineProfiler:
     def __init__(self, *functions):
         self.functions = []
         self.code_map = {}
+        self.file_map = {}
         self.last_time = {}
         self.timer_unit = hpTimerUnit()
         self.enable_count = 0
@@ -166,10 +168,12 @@ cdef class LineProfiler:
         """
         stats = {}
         for code in self.code_map:
+            filename = self.file_map[code]
             entries = self.code_map[code].values()
-            key = label(code)
+            key = self.label(code)
             stats[key] = [e.astuple() for e in entries]
             stats[key].sort()
+            stats[key].append(filename)
         return LineStats(stats, self.timer_unit)
 
 
@@ -198,6 +202,18 @@ cdef int python_trace_callback(object self_, PyFrameObject *py_frame, int what,
     self = <LineProfiler>self_
     last_time = self.last_time
 
+    if what == PyTrace_CALL and <object>py_frame.f_code not in self.code_map:
+        # Set filename to more useful one
+        f_globals = <object>py_frame.f_globals
+        better_fname = <object>f_globals.get('__file__', None)
+        code = <object>py_frame.f_code
+
+        if better_fname is None:
+            better_fname = code.co_filename
+
+        self.code_map[code] = {}
+        self.file_map[code] = better_fname
+
     if what == PyTrace_LINE or what == PyTrace_RETURN:
         code = <object>py_frame.f_code
         if code in self.code_map:
@@ -224,5 +240,3 @@ cdef int python_trace_callback(object self_, PyFrameObject *py_frame, int what,
                     del last_time[code]
 
     return 0
-
-
