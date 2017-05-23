@@ -11,10 +11,10 @@ from distutils.log import warn
 try:
     from Cython.Distutils import build_ext
     cmdclass = dict(build_ext=build_ext)
-    line_profiler_source = '_line_profiler.pyx'
+    line_profiler_source = 'line_profiler/_line_profiler.pyx'
 except ImportError:
     cmdclass = {}
-    line_profiler_source = '_line_profiler.c'
+    line_profiler_source = 'line_profiler/_line_profiler.c'
     if not os.path.exists(line_profiler_source):
         raise distutils.errors.DistutilsError("""\
 You need Cython to build the line_profiler from a git checkout, or
@@ -43,9 +43,10 @@ setup(
     url = 'https://github.com/rkern/line_profiler',
     download_url = 'https://github.com/rkern/line_profiler/tarball/2.0',
     ext_modules = [
-        Extension('_line_profiler',
+        Extension('line_profiler._line_profiler',
                   sources=[line_profiler_source, 'timers.c', 'unset_trace.c'],
                   depends=['python25.pxd'],
+                  include_dirs=[os.path.dirname(os.path.realpath(__file__))],
         ),
     ],
     license = "BSD",
@@ -66,7 +67,7 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         "Topic :: Software Development",
     ],
-    py_modules = ['line_profiler', 'kernprof'],
+    py_modules = ['line_profiler/__init__', 'line_profiler/line_profiler', 'line_profiler/getblock', 'line_profiler/kernprof'],
     entry_points = {
         'console_scripts': [
             'kernprof=kernprof:main',

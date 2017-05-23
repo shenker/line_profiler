@@ -2,7 +2,7 @@ include LICENSE.txt
 include LICENSE_Python.txt
 include README.rst
 include python25.pxd
-include timers.h
-include _line_profiler.c
-include unset_trace.h
+include line_profiler/timers.h
+include line_profiler/_line_profiler.c
+include line_profiler/unset_trace.h
 recursive-include tests *.py
