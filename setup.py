@@ -70,7 +70,8 @@ setup(
     py_modules = ['line_profiler/__init__', 'line_profiler/line_profiler', 'line_profiler/getblock', 'line_profiler/kernprof'],
     entry_points = {
         'console_scripts': [
-            'kernprof=kernprof:main',
+            'line_profiler=line_profiler.line_profiler:main',
+            'kernprof=line_profiler.kernprof:main',
         ],
     },
     install_requires = [
